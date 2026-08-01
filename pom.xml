@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Standalone parent for the qits-idp repo: the platform's own identity provider. Phase 1 is
+         MACHINE identity only — an RS256 signing key that survives restarts, a JWKS, an OIDC
+         discovery document, and a `client_credentials` token endpoint for the long-lived services.
+         Users, login and invite tokens are phase 3 and are not in this tree yet.
+
+         The qits-cd/qits-ci case exactly: DELIBERATELY ITS OWN GAV, no <parent>, versions that must
+         stay in step with the platform (Quarkus, JDK release) duplicated on purpose — a clone of
+         THIS repo alone must build, with no monorepo and no parent to inherit from. The directories
+         are `idp/` and `service/`; the coordinates are namespaced (`eu.wohlben.qits:qits-idp-*`) so
+         generic module names cannot collide in a shared ~/.m2.
+
+         WHAT THE SIBLINGS HAVE AND THIS DOES NOT: no Quinoa, no Lombok, no MapStruct. This service
+         serves no client in phase 1 (so `./mvnw verify` needs neither node nor a webui submodule),
+         and it has no DTO layer worth a mapper — its whole output is two JSON documents and a JWT.
+         Each comes back the day something here needs it, not before. -->
+    <groupId>eu.wohlben.qits</groupId>
+    <artifactId>qits-idp</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>qits-idp</name>
+
+    <modules>
+        <!-- Listed first: `service` depends on it. -->
+        <module>idp</module>
+        <module>service</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
+        <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
+        <quarkus.platform.version>3.34.6</quarkus.platform.version>
+
+        <compiler-plugin.version>3.15.0</compiler-plugin.version>
+        <surefire-plugin.version>3.5.4</surefire-plugin.version>
+        <failsafe-plugin.version>3.5.4</failsafe-plugin.version>
+        <jandex-plugin.version>3.4.0</jandex-plugin.version>
+
+        <!-- `mvn verify` must be green on a clone with nothing installed. The packaged-artifact IT
+             runs with -DskipITs=false, and `service`'s `native` profile flips it so a -Dnative
+             build exercises the binary it just compiled instead of packaging it and asserting
+             nothing. -->
+        <skipITs>true</skipITs>
+
+        <!-- Surefire's @{argLine} has no value unless something (jacoco/quarkus) sets it. -->
+        <argLine/>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>${quarkus.platform.group-id}</groupId>
+                <artifactId>${quarkus.platform.artifact-id}</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- The reactor's own module, so `service` depends on it version-less. -->
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>qits-idp-domain</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>${quarkus.platform.group-id}</groupId>
+                    <artifactId>quarkus-maven-plugin</artifactId>
+                    <version>${quarkus.platform.version}</version>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${compiler-plugin.version}</version>
+                    <configuration>
+                        <parameters>true</parameters>
+                        <!-- The siblings disable incremental compilation because it leaves stale
+                             generated classes behind; kept here so the modules behave alike. -->
+                        <useIncrementalCompilation>false</useIncrementalCompilation>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire-plugin.version}</version>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${failsafe-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>io.smallrye</groupId>
+                    <artifactId>jandex-maven-plugin</artifactId>
+                    <version>${jandex-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>make-index</id>
+                            <goals>
+                                <goal>jandex</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

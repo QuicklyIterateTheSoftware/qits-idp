@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.wohlben.qits</groupId>
+        <artifactId>qits-idp</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <!-- The idp HTTP boundary: `eu.wohlben.qits.idp.api` — the discovery document, the JWKS, and
+         the token endpoint. Everything below it (keys, clients, minting) is `qits-idp-domain`.
+
+         A DEPLOYABLE APP, not a library JAR — <packaging>quarkus</packaging> binds augmentation
+         into the lifecycle so it cannot be silently misplaced (the migration-deployables-plan.md
+         reasoning, verbatim from the siblings).
+
+         NEVER let quarkus-undertow onto this classpath — the sibling rule, kept even though this
+         service serves no client today; phase 3 adds one and the check must not have to be
+         rediscovered then. -->
+    <artifactId>qits-idp-service</artifactId>
+    <name>qits-idp :: service</name>
+    <packaging>quarkus</packaging>
+
+    <dependencies>
+        <dependency>
+            <!-- /<segment>/q/health/ready - the readiness endpoint qits-cd's health gate curls;
+                 the deployment convention every service answers. -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>qits-idp-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+        </dependency>
+        <dependency>
+            <!-- OTLP export to qits-observability. The extension is what instruments the process;
+                 the endpoint and protocol in application.properties are what make it arrive, since
+                 the defaults are gRPC to localhost:4317 and the receiver speaks HTTP/protobuf. -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
+            <!-- JSON out (the discovery document, the JWKS, the token response) and the
+                 form-urlencoded reader the token endpoint needs — quarkus-rest comes with it. -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- The suite verifies an issued token against what /idp/jwks published rather than against
+             the signing key it could reach in-process — the only check that proves a consumer could
+             do it. It uses jose4j, which arrives transitively (compile scope) with
+             smallrye-jwt-build. Do NOT re-declare it here at test scope: the nearest declaration
+             wins, and jose4j would then be missing from the packaged runtime classpath. -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <!-- This module is the DEPLOYABLE, not a library jar, and <packaging>quarkus</packaging>
+                     above is what says so: it binds generate-code, generate-code-tests and build into
+                     the lifecycle, so augmentation stops being an execution block that can be
+                     misplaced. Requires <extensions>true</extensions>; drop it and the build stops at
+                     "Unknown packaging: quarkus" rather than failing quietly. Version comes from the
+                     root pom's pluginManagement. -->
+                <groupId>${quarkus.platform.group-id}</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <extensions>true</extensions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <!-- IdpPackagedSurfaceIT binds here. skipITs=true is the parent's default, so a
+                     fresh clone's `mvn verify` is green; `-DskipITs=false` runs it against the
+                     fast-jar and the `native` profile flips it to run against the binary. -->
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- How @QuarkusIntegrationTest finds the compiled binary in a `-Dnative`
+                             build; without it the native run has nothing to launch. The name is
+                             `quarkus.package.output-name` from application.properties, NOT maven's
+                             finalName. The two spellings move together. -->
+                        <native.image.path>${project.build.directory}/qits-idp</native.image.path>
+                        <!-- Launch the packaged app on a free port instead of the default 8081 —
+                             the @QuarkusTest port, which surefire's last Quarkus instance can still
+                             hold when failsafe starts, and which on the deployment host is the
+                             platform's own npm registry. -->
+                        <quarkus.http.test-port>0</quarkus.http.test-port>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- GraalVM native build (the profile every deployable sibling carries): `-Dnative` turns
+             the fast-jar off and the native image on. It lives in THIS module, not the root pom,
+             because only this module is an application — `idp` is a library jar with nothing to
+             native-compile. skipITs flips with it so the build runs IdpPackagedSurfaceIT against
+             the binary it just produced rather than packaging one nobody starts. -->
+        <profile>
+            <id>native</id>
+            <activation>
+                <property>
+                    <name>native</name>
+                </property>
+            </activation>
+            <properties>
+                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+                <skipITs>false</skipITs>
+                <quarkus.native.enabled>true</quarkus.native.enabled>
+            </properties>
+        </profile>
+    </profiles>
+</project>
