@@ -1,0 +1,31 @@
+package eu.wohlben.qits.idp.control;
+
+import java.util.List;
+
+/**
+ * The structured claims a token may carry beyond the registered ones.
+ *
+ * <p>Claims, not scopes: {@code aud} names the service a token is for, and these name what it is
+ * for <em>within</em> that service. The list is closed on purpose — it bounds the config key
+ * namespace ({@code qits.idp.client.<id>.claims.<name>}) and it is the same set the shared
+ * enforcement helpers in {@code qits-auth-core} know. Adding a claim is a change in both places.
+ *
+ * <p>The idp only states a claim. What a value permits — including whether {@code *} means "any" —
+ * is the resource service's decision.
+ */
+public final class ClaimNames {
+
+  /** The project a token may act on, matched against the project a request names. */
+  public static final String PROJECT = "project";
+
+  /** The workspace a token may act on. */
+  public static final String WORKSPACE = "workspace";
+
+  /** The branch a token may act on — a workspace agent pushes only to its own. */
+  public static final String BRANCH = "branch";
+
+  /** Every grantable claim, in the order they are read from config. */
+  public static final List<String> GRANTABLE = List.of(PROJECT, WORKSPACE, BRANCH);
+
+  private ClaimNames() {}
+}
