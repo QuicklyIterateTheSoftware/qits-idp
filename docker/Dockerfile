@@ -82,8 +82,7 @@ WORKDIR /work
 
 # curl, so the container answers a docker healthcheck — qits-cd injects one at `docker run` and
 # polls it through `docker inspect`, and the probe runs INSIDE the container.
-RUN microdnf -y --setopt=install_weak_deps=0 --nodocs install curl \
- && microdnf -y clean all
+RUN curl --version >/dev/null
 
 # `quarkus.package.output-name` names the binary `qits-idp` (no -runner suffix), so the process is
 # identifiable in `ps`/`docker top`. That name is spelled a third time in service/pom.xml as
