@@ -82,6 +82,8 @@ WORKDIR /work
 
 # curl, so the container answers a docker healthcheck — qits-cd injects one at `docker run` and
 # polls it through `docker inspect`, and the probe runs INSIDE the container.
+# UBI minimal already supplies curl-minimal; assert it is present without installing the
+# conflicting full curl package.
 RUN curl --version >/dev/null
 
 # `quarkus.package.output-name` names the binary `qits-idp` (no -runner suffix), so the process is
