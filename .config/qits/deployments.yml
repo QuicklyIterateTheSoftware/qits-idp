@@ -1,0 +1,4 @@
+# How qits-cd deploys this repo. It reads this file from the git host at the
+# built sha. qits-idp is a singleton: one identity plane serves every
+# environment, so it is not environment-tiered and deploys from main.
+deployment_target: singleton
