@@ -1,4 +1,4 @@
-# qits-idp — working notes
+# qits-platform-idp — working notes
 
 Read `README.md` first: it defines the surface, the token's shape, and where clients and keys come
 from. This file is the working conventions on top of it.
@@ -21,8 +21,8 @@ touching anything about keys.
 **Never make the safe direction configurable.** A client with a blank secret is unusable. There is
 no flag that turns that into "open", and adding one would make an unconfigured deployment issue
 identity to whoever asks. `IdpTokenTest.aClientWithNoSecretIsUnusableRatherThanOpen` runs against
-`qits-gateway` — a *shipped* client with no secret — rather than a fixture, so the test pins the
-real default.
+`prod-qits-gateway` — a *shipped* client with no secret — rather than a fixture, so the test pins
+the real default.
 
 ## Package and module conventions
 
@@ -42,8 +42,8 @@ The directories are `idp/` and `service/`; the artifactIds are `qits-idp-domain`
 
 `quarkus.rest.path=/idp`, **not** `/idp/api`. That is the one place this repo departs from the
 sibling services, and it is not cosmetic: an OIDC consumer configured with auth-server-url
-`http://qits-idp:8080/idp` fetches `/idp/.well-known/openid-configuration` by its own derivation and
-follows the document from there. An `/api` segment would move the discovery document off the path
+`http://qits-platform-idp:8080/idp` fetches `/idp/.well-known/openid-configuration` by its own
+derivation and follows the document from there. An `/api` segment would move the discovery document off the path
 every OIDC client computes. Phase 2's registration API takes `@Path("/api/clients")` relative to
 this, which keeps the machine-admin surface separate without moving the protocol.
 

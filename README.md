@@ -1,19 +1,19 @@
-# qits-idp
+# qits-platform-idp
 
 The platform's own identity provider. Phase 1 — this tree — is **machine identity only**: an RS256
 signing key that survives restarts, a JWKS, an OIDC discovery document, and a `client_credentials`
 token endpoint the platform's services authenticate to each other with.
 
-There is no user, no login and no session here. Browser sessions stay at qits-gateway, which keeps
+There is no user, no login and no session here. Browser sessions stay at the gateway, which keeps
 forwarding `X-Qits-User`; this service becomes the auth server that gateway points at in phase 3.
 
 ## The surface
 
-Everything is served under `/idp`, the segment qits-gateway routes verbatim.
+Everything is served under `/idp`, the segment the gateway routes verbatim.
 
 | path | what it is |
 |---|---|
-| `GET /idp/.well-known/openid-configuration` | discovery. An OIDC consumer configured with auth-server-url `http://qits-idp:8080/idp` derives this URL itself. |
+| `GET /idp/.well-known/openid-configuration` | discovery. An OIDC consumer configured with auth-server-url `http://qits-platform-idp:8080/idp` derives this URL itself. |
 | `GET /idp/jwks` | the public signing keys, each with its `kid`. |
 | `POST /idp/token` | `application/x-www-form-urlencoded`, `grant_type=client_credentials`. |
 | `GET /idp/q/health/ready` | readiness, where the deployment convention expects it. |
@@ -22,10 +22,10 @@ A token request authenticates with `client_secret_basic` **or** `client_secret_p
 and may name an `audience` (repeated or whitespace-separated). Naming none asks for every audience
 the client is allowed.
 
-    curl -s -X POST http://qits-idp:8080/idp/token \
+    curl -s -X POST http://qits-platform-idp:8080/idp/token \
       -d grant_type=client_credentials \
-      -d client_id=qits-ci -d client_secret=... \
-      -d audience=qits-cd
+      -d client_id=prod-qits-ci -d client_secret=... \
+      -d audience=prod-qits-deployments
 
 The token is RS256, carries a `kid`, and says:
 
@@ -47,12 +47,16 @@ Refusals are RFC 6749 §5.2: `invalid_client` (401, with a `WWW-Authenticate` ch
 ## Clients
 
 Phase 1 clients are config, not rows. `qits.idp.clients` lists the ids that exist; each one has
-`qits.idp.client.<id>.secret`, `.audiences`, and `.claims.<name>`. The shipped list is the platform's
-service names — `qits-ci`, `qits-cd`, `qits-artifacts`, `qits-workspaces`, `qits-gateway` — and the
-full key reference is in `idp/src/main/resources/META-INF/microprofile-config.properties`.
+`qits.idp.client.<id>.secret`, `.audiences`, and `.claims.<name>`. The shipped list is the names
+services are dialed by — `prod-qits-ci`, `qits-platform-artifacts`, `prod-qits-workspaces`,
+`prod-qits-gateway` — and the full key reference is in
+`idp/src/main/resources/META-INF/microprofile-config.properties`.
+
+**An id is part of the config key**, so a renamed client takes its `qits.idp.client.<id>.*` lines
+with it. `prod-qits-deployments` is an audience with no client: it receives tokens and mints none.
 
 **No secret ships with any of them, and a client with a blank secret is unusable rather than open.**
-An unconfigured deployment therefore issues nothing; `QITS_IDP_CLIENT_QITS_CI_SECRET=…` is what
+An unconfigured deployment therefore issues nothing; `QITS_IDP_CLIENT_PROD_QITS_CI_SECRET=…` is what
 turns a client on. This is the opposite reading from `qits.artifacts.token`, where a blank value
 means "no guard" — the difference is that a guard with no secret protects a network that is already
 trusted, while an issuer with no secret would mint identity for whoever asks.

@@ -25,9 +25,9 @@ import org.junit.jupiter.api.Test;
  * makes them catch a prefix regression, and every issued token is verified against what {@code
  * /idp/jwks} published rather than against anything reachable in-process.
  *
- * <p>The clients come from {@code src/test/resources/application.properties}. {@code qits-gateway}
- * is one of the SHIPPED service clients, secret-less exactly as it ships — that is what the
- * blank-secret case runs against.
+ * <p>The clients come from {@code src/test/resources/application.properties}. {@code
+ * prod-qits-gateway} is one of the SHIPPED service clients, secret-less exactly as it ships — that
+ * is what the blank-secret case runs against.
  */
 @QuarkusTest
 public class IdpTokenTest {
@@ -38,7 +38,7 @@ public class IdpTokenTest {
         post("grant_type=client_credentials"
                 + "&client_id=test-broad"
                 + "&client_secret=test-broad-secret"
-                + "&audience=qits-cd")
+                + "&audience=prod-qits-deployments")
             .statusCode(200)
             .body("token_type", equalTo("Bearer"))
             .body("expires_in", equalTo(300))
@@ -48,10 +48,10 @@ public class IdpTokenTest {
             .extract()
             .path("access_token");
 
-    JwtClaims claims = PublishedJwks.verify(token, "qits-cd");
+    JwtClaims claims = PublishedJwks.verify(token, "prod-qits-deployments");
     assertEquals("test-broad", claims.getSubject());
     assertEquals(PublishedJwks.ISSUER, claims.getIssuer());
-    assertEquals(List.of("qits-cd"), PublishedJwks.audienceOf(claims));
+    assertEquals(List.of("prod-qits-deployments"), PublishedJwks.audienceOf(claims));
     assertNotNull(claims.getIssuedAt(), "iat");
     assertEquals(
         300,
@@ -67,7 +67,7 @@ public class IdpTokenTest {
         given()
             .contentType(ContentType.URLENC)
             .header("Authorization", basic("test-broad", "test-broad-secret"))
-            .body("grant_type=client_credentials&audience=qits-ci")
+            .body("grant_type=client_credentials&audience=prod-qits-ci")
             .when()
             .post("/idp/token")
             .then()
@@ -75,7 +75,7 @@ public class IdpTokenTest {
             .extract()
             .path("access_token");
 
-    assertEquals("test-broad", PublishedJwks.verify(token, "qits-ci").getSubject());
+    assertEquals("test-broad", PublishedJwks.verify(token, "prod-qits-ci").getSubject());
   }
 
   @Test
@@ -88,8 +88,9 @@ public class IdpTokenTest {
             .extract()
             .path("access_token");
 
-    JwtClaims claims = PublishedJwks.verify(token, "qits-cd");
-    assertEquals(List.of("qits-ci", "qits-cd"), PublishedJwks.audienceOf(claims));
+    JwtClaims claims = PublishedJwks.verify(token, "prod-qits-deployments");
+    assertEquals(
+        List.of("prod-qits-ci", "prod-qits-deployments"), PublishedJwks.audienceOf(claims));
   }
 
   @Test
@@ -98,12 +99,12 @@ public class IdpTokenTest {
         post("grant_type=client_credentials"
                 + "&client_id=test-broad"
                 + "&client_secret=test-broad-secret"
-                + "&audience=qits-cd")
+                + "&audience=prod-qits-deployments")
             .statusCode(200)
             .extract()
             .path("access_token");
 
-    JwtClaims claims = PublishedJwks.verify(token, "qits-cd");
+    JwtClaims claims = PublishedJwks.verify(token, "prod-qits-deployments");
     assertEquals("qits", claims.getClaimValueAsString("project"), "the granted claim, verbatim");
     assertFalse(claims.hasClaim("workspace"), "an ungranted claim must not appear");
     assertFalse(claims.hasClaim("branch"), "an ungranted claim must not appear");
@@ -115,7 +116,7 @@ public class IdpTokenTest {
     post("grant_type=client_credentials&client_id=test-broad&client_secret=wrong")
         .statusCode(401)
         .body("error", equalTo("invalid_client"))
-        .header("WWW-Authenticate", "Basic realm=\"qits-idp\"");
+        .header("WWW-Authenticate", "Basic realm=\"qits-platform-idp\"");
   }
 
   @Test
@@ -127,18 +128,18 @@ public class IdpTokenTest {
 
   @Test
   public void aClientWithNoSecretIsUnusableRatherThanOpen() {
-    // qits-gateway is a SHIPPED service client with no secret configured — the state every service
-    // client ships in. A blank secret must be refused like a wrong one, never accepted as "no
-    // authentication required".
-    post("grant_type=client_credentials&client_id=qits-gateway&client_secret=")
+    // prod-qits-gateway is a SHIPPED service client with no secret configured — the state every
+    // service client ships in. A blank secret must be refused like a wrong one, never accepted as
+    // "no authentication required".
+    post("grant_type=client_credentials&client_id=prod-qits-gateway&client_secret=")
         .statusCode(401)
         .body("error", equalTo("invalid_client"));
-    post("grant_type=client_credentials&client_id=qits-gateway")
+    post("grant_type=client_credentials&client_id=prod-qits-gateway")
         .statusCode(401)
         .body("error", equalTo("invalid_client"));
     given()
         .contentType(ContentType.URLENC)
-        .header("Authorization", basic("qits-gateway", ""))
+        .header("Authorization", basic("prod-qits-gateway", ""))
         .body("grant_type=client_credentials")
         .when()
         .post("/idp/token")
@@ -152,7 +153,7 @@ public class IdpTokenTest {
     post("grant_type=client_credentials"
             + "&client_id=test-narrow"
             + "&client_secret=test-narrow-secret"
-            + "&audience=qits-artifacts")
+            + "&audience=qits-platform-artifacts")
         .statusCode(400)
         .body("error", equalTo("invalid_target"));
   }
@@ -204,10 +205,10 @@ public class IdpTokenTest {
             .extract()
             .path("access_token");
 
-    assertTrue(PublishedJwks.verify(token, "qits-cd").hasClaim("aud"));
+    assertTrue(PublishedJwks.verify(token, "prod-qits-deployments").hasClaim("aud"));
     assertThrows(
         InvalidJwtException.class,
-        () -> PublishedJwks.verify(token, "qits-artifacts"),
+        () -> PublishedJwks.verify(token, "qits-platform-artifacts"),
         "aud is what makes a token unusable at a service it was not minted for");
   }
 

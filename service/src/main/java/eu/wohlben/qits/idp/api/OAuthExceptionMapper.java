@@ -32,7 +32,7 @@ public class OAuthExceptionMapper implements ExceptionMapper<OAuthException> {
       // RFC 6749 §5.2 requires the challenge whenever the client tried the Authorization header.
       // It is sent on every 401 rather than only then: the header costs nothing, and deciding
       // per-request would mean the mapper had to know how the credentials arrived.
-      response.header(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"qits-idp\"");
+      response.header(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"qits-platform-idp\"");
     }
     return response.build();
   }

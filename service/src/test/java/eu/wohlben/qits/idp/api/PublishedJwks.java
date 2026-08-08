@@ -23,7 +23,7 @@ import org.jose4j.keys.resolvers.JwksVerificationKeyResolver;
 public final class PublishedJwks {
 
   /** The issuer the shipped {@code qits.idp.issuer} default names, which the suite runs on. */
-  public static final String ISSUER = "http://qits-idp:8080/idp";
+  public static final String ISSUER = "http://qits-platform-idp:8080/idp";
 
   private PublishedJwks() {}
 

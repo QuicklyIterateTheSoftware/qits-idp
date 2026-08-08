@@ -57,23 +57,23 @@ public class IdpPackagedSurfaceIT {
       deleteRecursively(HOME);
       return Map.of(
           "user.home", HOME.toString(),
-          "qits.idp.client.qits-cd.secret", SECRET);
+          "qits.idp.client.prod-qits-workspaces.secret", SECRET);
     }
   }
 
   @Test
   public void theDiscoveryDocumentIsWhereAnOidcConsumerLooksForIt() {
-    // auth-server-url http://qits-idp:8080/idp + OIDC's own derivation = this path. It is a
-    // build-time route prefix, so the artifact is the only place it can be proven.
+    // auth-server-url http://qits-platform-idp:8080/idp + OIDC's own derivation = this path. It
+    // is a build-time route prefix, so the artifact is the only place it can be proven.
     given()
         .when()
         .get("/idp/.well-known/openid-configuration")
         .then()
         .statusCode(200)
-        .body("issuer", equalTo("http://qits-idp:8080/idp"))
-        .body("jwks_uri", equalTo("http://qits-idp:8080/idp/jwks"));
+        .body("issuer", equalTo("http://qits-platform-idp:8080/idp"))
+        .body("jwks_uri", equalTo("http://qits-platform-idp:8080/idp/jwks"));
 
-    // qits-gateway routes verbatim by prefix, so there is no unprefixed form to fall back to.
+    // prod-qits-gateway routes verbatim by prefix, so there is no unprefixed form to fall back to.
     given().when().get("/.well-known/openid-configuration").then().statusCode(404);
   }
 
@@ -94,9 +94,9 @@ public class IdpPackagedSurfaceIT {
         given()
             .contentType(ContentType.URLENC)
             .body(
-                "grant_type=client_credentials&client_id=qits-cd&client_secret="
+                "grant_type=client_credentials&client_id=prod-qits-workspaces&client_secret="
                     + SECRET
-                    + "&audience=qits-artifacts")
+                    + "&audience=qits-platform-artifacts")
             .when()
             .post("/idp/token")
             .then()
@@ -105,7 +105,9 @@ public class IdpPackagedSurfaceIT {
             .path("access_token");
 
     assertNotNull(PublishedJwks.kidOf(token), "the kid header must survive the packaging");
-    assertEquals("qits-cd", PublishedJwks.verify(token, "qits-artifacts").getSubject());
+    assertEquals(
+        "prod-qits-workspaces",
+        PublishedJwks.verify(token, "qits-platform-artifacts").getSubject());
 
     // The round trip above would look identical against an in-memory database, so pin that the
     // process really opened the ${user.home}-rooted file H2 the idp jar ships — the file the
@@ -117,11 +119,11 @@ public class IdpPackagedSurfaceIT {
 
   @Test
   public void anUnconfiguredClientStillCannotAuthenticate() {
-    // Only qits-cd was given a secret above. The other four ship without one and must stay
-    // unusable in the packaged artifact too.
+    // Only prod-qits-workspaces was given a secret above. The other three ship without one and
+    // must stay unusable in the packaged artifact too.
     given()
         .contentType(ContentType.URLENC)
-        .body("grant_type=client_credentials&client_id=qits-ci&client_secret=" + SECRET)
+        .body("grant_type=client_credentials&client_id=prod-qits-ci&client_secret=" + SECRET)
         .when()
         .post("/idp/token")
         .then()

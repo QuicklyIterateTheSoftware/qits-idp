@@ -1,5 +1,6 @@
-# qits-idp as a GraalVM-native container IMAGE — the same shape as its siblings' docker/Dockerfile:
-# a Mandrel builder stage compiles the binary, a minimal runtime stage carries only it.
+# qits-platform-idp as a GraalVM-native container IMAGE — the same shape as its siblings'
+# docker/Dockerfile: a Mandrel builder stage compiles the binary, a minimal runtime stage carries
+# only it.
 #
 # This file is not how the binary is built; it is how the binary is SHIPPED. `.sdkmanrc` names a
 # GraalVM (25.0.2-graalce), so `sdk env && ./mvnw package -Dnative` produces
@@ -16,7 +17,7 @@
 # `docker run --rm qits/idp:latest` dies before the HTTP listener: uid 1001 has no /etc/passwd entry
 # in ubi-minimal, a native image resolves user.home through getpwuid(2) rather than $HOME, and the
 # ${user.home}-rooted H2 default the `idp` jar ships has nowhere to land. IT IS DELIBERATELY LEFT
-# THAT WAY (the qits-ci/qits-cd stance), and here the stake is higher than for any sibling:
+# THAT WAY (the qits-ci stance), and here the stake is higher than for any sibling:
 #
 #   THE SIGNING KEY LIVES IN THAT DATABASE. An idp that comes up healthy on an empty environment
 #   writes its keypair into the container's own writable layer, and the next redeploy generates a
@@ -27,9 +28,9 @@
 # So a deployment mounts a volume at /data (which this image owns, see below) and names the
 # database:
 #
-#   docker run -v qits-idp-data:/data \
+#   docker run -v qits-platform-idp-data:/data \
 #     -e QUARKUS_DATASOURCE_IDP_JDBC_URL=jdbc:h2:file:/data/idp/h2/idp \
-#     -e QITS_IDP_CLIENT_QITS_CI_SECRET=... \
+#     -e QITS_IDP_CLIENT_PROD_QITS_CI_SECRET=... \
 #     ...
 #
 # --- what else a deployment owns ------------------------------------------------------------------
@@ -39,12 +40,12 @@
 #                           That is the safe direction — a blank secret is refused, never accepted —
 #                           but it also means an idp nobody configured issues nothing at all, and
 #                           the only symptom is `invalid_client` in the caller's log. The client ids
-#                           are the service names: qits-ci, qits-cd, qits-artifacts, qits-workspaces,
-#                           qits-gateway.
+#                           are the names each service is DIALED by: prod-qits-ci,
+#                           qits-platform-artifacts, prod-qits-workspaces, prod-qits-gateway.
 #   QITS_IDP_ISSUER         the `iss` of every token and the base of every advertised endpoint.
-#                           Defaults to http://qits-idp:8080/idp, which is what consumers on qits-net
-#                           use. Change it and EVERY consumer's configured issuer must change with
-#                           it; a mismatch is rejected at validation.
+#                           Defaults to http://qits-platform-idp:8080/idp, which is what consumers
+#                           on qits-net use. Change it and EVERY consumer's configured issuer must
+#                           change with it; a mismatch is rejected at validation.
 #   QITS_OBSERVABILITY_URL  where OTLP export goes; absent qits-observability, the exporter logs a
 #                           warning per export loudly enough to bury real lines
 #                           (OTEL_SDK_DISABLED=true is the escape hatch).
@@ -80,8 +81,8 @@ RUN ./mvnw -B -ntp -pl service -am package -Dnative -DskipTests \
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
 WORKDIR /work
 
-# curl, so the container answers a docker healthcheck — qits-cd injects one at `docker run` and
-# polls it through `docker inspect`, and the probe runs INSIDE the container.
+# curl, so the container answers a docker healthcheck — the deployer injects one at `docker run`
+# and polls it through `docker inspect`, and the probe runs INSIDE the container.
 # UBI minimal already supplies curl-minimal; assert it is present without installing the
 # conflicting full curl package.
 RUN curl --version >/dev/null

@@ -20,8 +20,8 @@ import java.util.Map;
  *
  * <p>Paths are relative to {@code quarkus.rest.path=/idp}, so this class serves {@code
  * /idp/.well-known/openid-configuration} and {@code /idp/jwks}. A consumer configured with
- * auth-server-url {@code http://qits-idp:8080/idp} finds the first by OIDC's own derivation and
- * follows the document to the rest.
+ * auth-server-url {@code http://qits-platform-idp:8080/idp} finds the first by OIDC's own
+ * derivation and follows the document to the rest.
  */
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)

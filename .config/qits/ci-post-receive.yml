@@ -4,7 +4,7 @@ steps:
     timeout-seconds: 3600
     script: |
       set -eu
-      ref="$QITS_REGISTRY/$QITS_IMAGE_REPOSITORY/qits-idp:$QITS_CI_SHA"
+      ref="$QITS_REGISTRY/$QITS_IMAGE_REPOSITORY/qits-platform-idp:$QITS_CI_SHA"
       docker build -t "$ref" -f docker/Dockerfile .
       docker push "$ref"
       docker rmi "$ref" || true
